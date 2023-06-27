@@ -1,0 +1,179 @@
+import * as d3 from "https://cdn.skypack.dev/d3@7.8.4";
+
+
+fetch('https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/video-game-sales-data.json')
+.then(response => response.json())
+.then(data => {
+  
+  d3.select('body')
+    .append('div')
+    .attr('id', 'container')
+  d3.select('#container')
+    .append('h1')
+    .attr('id', 'title')
+    .text('Video Game Sales')
+    .append('h2')
+    .attr('id', 'description')
+    .text('Top 100 Most Sold Video Games Grouped by Platform')
+  
+  const w = 900;
+  const h = 500;
+
+  let svg = d3.select('#container')
+    .append('svg')
+    .attr('width', w)
+    .attr('height', h)
+  
+  const tooltip = d3.select("body")
+      .append("div")
+      .attr("class", "tooltip")
+      .attr("id", "tooltip")
+      .style("opacity", 0)
+
+  var root = d3.hierarchy(data).sum(function(d){ return d.value}).sort((node1, node2) => node2.value-node1.value)
+  
+  d3.treemap()
+    .size([w, h])
+    .padding(2)
+    (root)
+  
+  const color = d3.scaleOrdinal([
+  '#1f77b4',
+  '#ff7f0e',
+  '#2ca02c',
+  '#d62728',
+  '#9467bd',
+  '#8c564b',
+  '#e377c2',
+  '#7f7f7f',
+  '#bcbd22',
+  '#17becf',
+  '#aec7e8',
+  '#ffbb78',
+  '#98df8a',
+  '#ff9896',
+  '#c5b0d5',
+  '#c49c94',
+  '#f7b6d2',
+  '#c7c7c7',
+  '#dbdb8d',
+  '#9edae5'
+])
+  
+  svg
+    .selectAll("rect")
+    .data(root.leaves())
+    .enter()
+    .append('g')
+    .append("rect")
+      .attr('x', function (d) { return d.x0; })
+      .attr('y', function (d) { return d.y0; })
+      .attr('width', function (d) { return d.x1 - d.x0; })
+      .attr('height', function (d) { return d.y1 - d.y0; })
+      .attr('class', 'tile')
+      .attr('data-name', d => d.data.name)
+      .attr('data-category', d => d.data.category)
+      .attr('data-value', d => d.data.value)
+      .style("stroke", "black")
+      .style("fill", function(d){ return color(d.parent.data.name)} )
+      .on("mouseover", function(event, d) {
+        const x = event.clientX;
+        const y = event.clientY;
+
+        tooltip.style("opacity", 0.9)        
+        tooltip.attr("id", "tooltip")
+        tooltip.attr("data-value", d.value)
+        tooltip.html('Value: ' + d.data.value)
+          .style("left", (x+15) + "px")
+          .style("top", (y-40) + "px");
+      })
+      .on("mouseout", function() {
+        tooltip.style("opacity", 0);
+      })
+  
+  
+  svg
+  .selectAll("g")
+  .data(root.leaves())
+  .join(enter => enter, update => {
+    update.append('text')
+      .attr("x", function(d) { return d.x0 + 3 })
+      .attr("y", function(d) { return d.y0 + 13 })
+      .html(function(d) {
+        return d.data.name;
+      })
+      .attr("font-size", "12px")
+      .attr("fill", "white")
+      .call(wrapText, 60, 1.1); // Wrap text with a maximum width of 60 pixels and adjust line height to 1.1
+  });
+
+  function wrapText(text, width, lineHeight) {
+    text.each(function() {
+      var text = d3.select(this),
+          words = text.text().split(/\s+|\//).reverse(),
+          word,
+          line = [],
+          lineNumber = 0,
+          x = text.attr("x"),
+          y = text.attr("y"),
+          dy = parseFloat(text.attr("dy") || 0),
+          tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+      
+      let betterWidth = text._groups[0][0].__data__.x1 - text._groups[0][0].__data__.x0-5;//text._groups[0][0].__data__
+      if(betterWidth < 90){
+        text.attr('font-size', '8px')
+      }
+      console.log(words.join(''))
+      if(words.join('') == "2WhitePokemon2BlackPokemon"){text.attr('id', 'foo')}
+      if(words.join('') == "2WhitePokemon2BlackPokemon"){text.attr("transform", "translate(0, -5)")}
+      
+      
+      while (word = words.pop()) {
+        line.push(word);
+        tspan.text(line.join(" "));
+        if (tspan.node().getComputedTextLength() > betterWidth) {
+          line.pop();
+          tspan.text(line.join(" "));
+          line = [word];
+          tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+        }
+      }
+    });
+  } 
+      
+  const rectW = 20;
+  const legendFontSize = 20;
+  const legendPadding = 3;
+  
+  let legend = d3.select('#container')
+    .append('svg')
+      .attr('id', 'legend')
+      .attr('width', w*0.5+1)
+      .attr('height', 4*legendFontSize)
+  
+  legend.selectAll('rect')
+    .data(data.children)
+    .enter()
+    .append('g')
+      .append('rect')
+      .attr('width', rectW)
+      .attr('height', rectW)
+      .attr('x', (d, i) => i < 6 ? i*(rectW+56) : i < 12 ? (i-6)*(rectW+56) : (i-12)*(rectW+56))
+      .attr('y', (d,i) => i < 6 ? 0 : i < 12 ? legendFontSize*1.5 : legendFontSize*3)
+      .attr('class', 'legend-item')
+      .style("fill", function(d){ return color(d.name)} )
+  
+  legend.selectAll('g')
+    .data(data.children)
+    .join(enter => enter, update =>{
+        update.append('text')
+        .text(d => d.name)
+        .style('fill', 'white')
+        .attr('font-size', legendFontSize)
+        .attr('x', (d, i) => i < 6 ? i*(rectW+56)+rectW+legendPadding : i < 12 ? (i-6)*(rectW+56)+rectW+legendPadding : (i-12)*(rectW+56)+rectW+legendPadding)
+        .attr('y', (d,i) => i < 6 ? legendFontSize : i < 12 ? legendFontSize*2.5 : legendFontSize*4)
+    })
+    
+
+
+})

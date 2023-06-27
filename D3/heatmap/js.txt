@@ -1,0 +1,124 @@
+import * as d3 from "https://cdn.skypack.dev/d3@7.8.4";
+
+fetch('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json')
+  .then(response => response.json())
+  .then(dataset => {
+    console.log(dataset)
+  
+    const padding = 60;
+    const w = 900;
+    const h = 500;
+  
+    const xScale = d3.scaleTime()
+      .domain([d3.min(dataset.monthlyVariance, function(d) { 
+        return new Date(d.year + "-01-01");
+      }), d3.max(dataset.monthlyVariance, function(d) { 
+        return new Date(d.year + "-01-01");
+      })])
+      .range([padding, w - padding]);
+
+    const yScale = d3.scaleTime()
+      .domain([new Date("2023-12-01T00:00:00"), new Date("2023-01-01T00:00:00")])
+      .range([h - padding, padding]);
+    
+    d3.select('body')
+      .append('div')
+      .attr('id', 'container')
+    d3.select('#container')
+      .append('h1')
+      .attr('id', 'title')
+      .text('Monthly Global Land-Surface Temperature')
+      .append('h2')
+      .attr('id', 'description')
+      .text("1753 - 2015: base temperature 8.66℃")
+  
+    const tooltip = d3.select("body")
+      .append("div")
+      .attr("class", "tooltip")
+      .attr("id", "tooltip")
+      .style("opacity", 0)
+  
+    const svg = d3.select('#container')
+      .append('svg')
+      .attr('width', w)
+      .attr('height', h)
+      .attr('id', 'graph')
+    
+    const distanceBetweenYTicks = yScale(new Date("2023-01-01T00:00:00")) - yScale(new Date("2022-12-01T00:00:00"))
+    
+    svg.selectAll('rect')
+      .data(dataset.monthlyVariance)
+      .enter()
+      .append('rect')
+      .attr('class', 'cell')
+      .attr('data-month', d => d.month-1)
+      .attr('data-year', d => d.year)
+      .attr('data-temp', d => dataset.baseTemperature + d.variance)
+      .attr("x", (d, i) => xScale(new Date(d.year + "-01-01")))
+      .attr("y", (d, i) => yScale(new Date(d.month < 10 ? ("2023-0" + d.month + "-01T00:00:00") : ("2023-" + d.month + "-01T00:00:00")))-distanceBetweenYTicks)
+      .attr("width", 3)
+      .attr("height", 35)
+      .style('fill', d => d.variance < -2 ? '#1034A6' : d.variance < -1 ? '#412F88' : d.variance < 0 ? '#722B6A' : d.variance > 0 ? '#A2264B' : d.variance > 1 ? '#D3212D' : d.variance > 2 ? '#F62D2D' : '#A2264B')  
+      .on("mouseover", function(event, d) {
+        this.parentNode.appendChild(this);
+        const x = event.clientX;
+        const y = event.clientY;
+        tooltip.style("opacity", 0.9)        
+        tooltip.attr("id", "tooltip")
+        tooltip.attr("data-year", d.year)
+        tooltip.html(d.year + "-M" + d.month + "<br>" + (dataset.baseTemperature + d.variance).toFixed(2) + "°<br>" + d.variance.toFixed(2) + "°")
+        .style("left", (x+15) + "px")
+        .style("top", (y-40) + "px");
+      })
+      .on("mouseout", function() {
+        tooltip.style("opacity", 0);
+      })
+    
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale).tickFormat(d3.timeFormat("%B"));
+    //const yAxis = d3.axisLeft(yScale).tickFormat((d, i) => (+d === +new Date("2024-01-01T00:00:00") || +d === +new Date("2022-12-01T00:00:00")) ? "" : d3.timeFormat("%B")(d));
+    svg.append('g')
+      .attr("transform", "translate(0, " + (h - padding) + ")")
+      .attr('id', 'x-axis')
+      .call(xAxis);
+  
+    svg.append('g')
+      .attr("transform", "translate(" + padding + ",0)")
+      .attr('id', 'y-axis')
+      .call(yAxis)
+      .selectAll('text')
+      .attr('y', '-17.5px')
+    
+    const legendH = 60;
+    const legendW = 450;
+    const legendPadding = 60;
+  
+    const legendScale = d3.scaleLinear()
+      .domain([1.68, 13.89])
+      .range([0, legendW-2*legendPadding]) //times two to compensate for transform
+    const legendAxis = d3.axisBottom(legendScale)
+  
+    const legend = d3.select('#container')
+      .append('svg')
+      .attr('width', legendW)
+      .attr('height', legendH)
+      .attr('id', 'legend')
+    
+    legend.append('g')
+      .attr("transform", "translate(" + legendPadding + "," + legendH/2 +")")
+      .attr('id', 'legend-axis')
+      .call(legendAxis)
+  
+    const rectH = 35;
+    const colors = ['#1034A6', '#412F88', '#722B6A', '#A2264B', '#D3212D', '#F62D2D'];
+    const temps = [1.68, 6.66, 7.66, 8.66, 9.66, 10.66, 13.89]; //max temp: 13.888, min temp: 1.684
+  
+    for(let i = 0; i < 6; i++){
+      legend.append('rect')
+        .attr('x', legendScale(temps[i]) + legendPadding)
+        .attr('y', legendH/2-rectH)
+        .attr("width", legendScale(temps[i+1])-legendScale(temps[i]))
+        .attr("height", rectH)
+        .style('fill', colors[i])
+    }   
+})

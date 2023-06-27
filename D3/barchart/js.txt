@@ -1,0 +1,82 @@
+import * as d3 from "https://cdn.skypack.dev/d3@7.8.4";
+
+fetch('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json')
+  .then(response => response.json())
+  .then(object => {
+    const dataset = [...object.data];
+    const w = 900;
+    const h = 500;
+    const padding = 50;
+  
+    const xScale = d3.scaleTime()
+      .domain(d3.extent(dataset, function(d) { 
+        return new Date(d[0]); 
+      }))
+      .range([padding, w - padding]);
+  
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(dataset, d => d[1])])
+      .range([h - padding, padding]);
+        
+    d3.select('body')
+      .append('div')
+      .attr("id", "container")
+    
+    d3.select('#container')
+      .append('h1')
+      .attr('id', 'title')
+      .text("United States GDP")
+  
+    const tooltip = d3.select("#container")
+      .append("div")
+      .attr("class", "tooltip")
+      .attr("id", "tooltip")
+      .style("opacity", 0); 
+    
+    const svg = d3.select('#container')
+      .append("svg")
+      .attr("width", w)
+      .attr("height", h)
+    
+    
+    svg.selectAll('rect')
+      .data(dataset)
+      .enter()
+      .append('rect')
+      .attr("x", (d, i) => xScale(new Date (d[0])))
+      .attr("y", (d, i) => yScale(d[1]))
+      .attr("width", 3)
+      .attr("height", (d, i) => h - padding - yScale(d[1]))
+      .attr('class', 'bar')
+      .attr('data-date', d => d[0])
+      .attr('data-gdp', d => d[1])
+  
+      .on("mouseover", function(event, d) {
+        const [x, y] = d3.pointer(event)
+        tooltip.style("opacity", 0.9)        
+        tooltip.attr("id", "tooltip")
+        tooltip.attr("data-date", d[0])
+        tooltip.text(d[0])
+        .style("left", (x + 10) + "px")
+        .style("top", (y - 5) + "px");
+        
+      })
+      .on("mouseout", function() {
+        tooltip.style("opacity", 0);
+      })
+
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
+    
+    svg.append('g')
+      .attr("transform", "translate(0, " + (h - padding) + ")")
+      .attr('id', 'x-axis')
+      .call(xAxis)
+  
+    svg.append('g')
+      .attr("transform", "translate(" + padding + ",0)")
+      .attr('id', 'y-axis')
+      .call(yAxis);
+    
+        
+  })
